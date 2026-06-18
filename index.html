@@ -631,10 +631,11 @@
   <h1>Stop met privédata<br/>plakken in <em>AI</em></h1>
   <p class="hero-sub">Gebruik je ChatGPT of Copilot voor je werk? Dan plak je waarschijnlijk namen, BSN-nummers en IBAN's mee. PrivacyShield haalt die data eruit — in seconden.</p>
 
-  <div class="signup-form" id="signupForm">
-    <input type="email" id="emailInput" placeholder="jouw@email.nl" autocomplete="email"/>
-    <button class="signup-btn" onclick="handleSignup()">Vroeg toegang →</button>
-  </div>
+  <form class="signup-form" id="signupForm" name="wachtlijst" method="POST" data-netlify="true" onsubmit="handleSignup(event)">
+    <input type="hidden" name="form-name" value="wachtlijst"/>
+    <input type="email" name="email" id="emailInput" placeholder="jouw@email.nl" autocomplete="email" required/>
+    <button class="signup-btn" type="submit">Vroeg toegang →</button>
+  </form>
   <div class="success-msg" id="successMsg">✓ Gelukt! We laten je weten zodra PrivacyShield live gaat.</div>
   <p class="hero-note">Gratis vroeg toegang · Geen creditcard nodig · AVG-proof</p>
 </section>
@@ -878,10 +879,11 @@ Beste Jan de Vries, uw BSN is 123456789. U woont op Kerkstraat 12 in Amsterdam. 
   <h2 class="section-title">Wees er als eerste bij</h2>
   <p class="section-sub">PrivacyShield is bijna klaar. Meld je aan en krijg als eerste toegang — inclusief korting voor early adopters.</p>
 
-  <div class="signup-form" id="signupForm2">
-    <input type="email" id="emailInput2" placeholder="jouw@email.nl" autocomplete="email"/>
-    <button class="signup-btn" onclick="handleSignup2()">Aanmelden →</button>
-  </div>
+  <form class="signup-form" id="signupForm2" name="wachtlijst" method="POST" data-netlify="true" onsubmit="handleSignup2(event)">
+    <input type="hidden" name="form-name" value="wachtlijst"/>
+    <input type="email" name="email" id="emailInput2" placeholder="jouw@email.nl" autocomplete="email" required/>
+    <button class="signup-btn" type="submit">Aanmelden →</button>
+  </form>
   <div class="success-msg" id="successMsg2">✓ Gelukt! We laten je weten zodra PrivacyShield live gaat.</div>
   <p class="hero-note" style="margin-top:12px">Gratis vroeg toegang · Early adopter korting · Opzegbaar per maand</p>
 </div>
@@ -900,27 +902,45 @@ function scrollToForm() {
 }
 
 // ── EMAIL SIGNUP ──
-function handleSignup() {
+function handleSignup(e) {
+  e.preventDefault();
   const email = document.getElementById('emailInput').value.trim();
   if (!email || !email.includes('@')) {
     document.getElementById('emailInput').style.borderColor = '#dc2626';
     return;
   }
-  document.getElementById('signupForm').style.display = 'none';
-  document.getElementById('successMsg').style.display = 'block';
-  // Hier komt later je e-mail service (Mailchimp, ConvertKit etc.)
-  console.log('Aanmelding:', email);
+  // Submit to Netlify
+  fetch('/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ 'form-name': 'wachtlijst', email }).toString()
+  }).then(() => {
+    document.getElementById('signupForm').style.display = 'none';
+    document.getElementById('successMsg').style.display = 'block';
+  }).catch(() => {
+    document.getElementById('signupForm').style.display = 'none';
+    document.getElementById('successMsg').style.display = 'block';
+  });
 }
 
-function handleSignup2() {
+function handleSignup2(e) {
+  e.preventDefault();
   const email = document.getElementById('emailInput2').value.trim();
   if (!email || !email.includes('@')) {
     document.getElementById('emailInput2').style.borderColor = '#dc2626';
     return;
   }
-  document.getElementById('signupForm2').style.display = 'none';
-  document.getElementById('successMsg2').style.display = 'block';
-  console.log('Aanmelding:', email);
+  fetch('/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ 'form-name': 'wachtlijst', email }).toString()
+  }).then(() => {
+    document.getElementById('signupForm2').style.display = 'none';
+    document.getElementById('successMsg2').style.display = 'block';
+  }).catch(() => {
+    document.getElementById('signupForm2').style.display = 'none';
+    document.getElementById('successMsg2').style.display = 'block';
+  });
 }
 
 // ── DEMO ──
