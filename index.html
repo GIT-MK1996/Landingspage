@@ -742,6 +742,44 @@
       .hero-form { flex-direction: column; }
       .cta-form { flex-direction: column; }
     }
+
+    /* ── FILE UPLOAD ── */
+    .demo-upload {
+      border: 2px dashed var(--border);
+      background: #fafafe;
+      padding: 28px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-bottom: none;
+    }
+
+    .demo-upload:hover, .demo-upload.dragover {
+      border-color: var(--accent);
+      background: var(--accent-l);
+    }
+
+    .demo-upload-icon { font-size: 28px; margin-bottom: 8px; }
+
+    .demo-upload-text {
+      font-size: 14px;
+      color: var(--ink);
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .demo-upload-sub { font-size: 12px; color: var(--subtle); }
+
+    .demo-file-loaded {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--accent-l);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
   </style>
 </head>
 <body>
@@ -857,20 +895,37 @@
 </section>
 
 <!-- DEMO -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <section class="section" id="demo" style="padding-top: 0">
   <div class="section-label">Probeer het zelf</div>
   <h2>Zie het in actie</h2>
-  <p class="section-sub">Plak tekst met privédata. De demo detecteert alles direct in je browser — er wordt niks opgeslagen.</p>
+  <p class="section-sub">Upload een bestand of plak tekst. Alles wordt lokaal verwerkt in je browser — er wordt niks verstuurd.</p>
 
   <div class="demo-wrap">
     <div class="demo-header">
       <span class="demo-header-title">PrivacyShield Demo</span>
       <span class="demo-header-badge badge-warn" id="demoStatus">⚠ Privédata aanwezig</span>
     </div>
+
+    <div class="demo-upload" id="demoUpload" onclick="document.getElementById('fileInput').click()">
+      <div class="demo-upload-icon">📂</div>
+      <div class="demo-upload-text">Sleep een bestand hierheen of <u>klik om te uploaden</u></div>
+      <div class="demo-upload-sub">PDF · DOCX · TXT — alleen lokaal verwerkt, niks verstuurd</div>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.txt" style="display:none" onchange="handleFile(this.files[0])"/>
+
+    <div class="demo-file-loaded" id="demoFileLoaded" style="display:none">
+      <span id="fileLoadedIcon">📄</span>
+      <span id="fileLoadedName" style="font-weight:600; font-size:13px;"></span>
+      <span id="fileLoadedSize" style="color:var(--subtle); font-size:12px;"></span>
+      <button class="demo-ghost-btn" style="margin-left:auto; padding:4px 10px; font-size:12px;" onclick="clearFile()">✕ Verwijderen</button>
+    </div>
+
     <div class="demo-cols">
       <div class="demo-col">
-        <div class="demo-col-label">Jouw tekst</div>
-        <textarea class="demo-ta" id="demoInput" placeholder="Plak hier tekst met privédata...&#10;&#10;Voorbeeld:&#10;Beste Jan de Vries, BSN 123456789, IBAN NL91ABNA0417164300, jan@mail.nl, 06-12345678"></textarea>
+        <div class="demo-col-label">Tekst uit document</div>
+        <textarea class="demo-ta" id="demoInput" placeholder="Plak hier tekst of upload een bestand hierboven..."></textarea>
       </div>
       <div class="demo-col">
         <div class="demo-col-label">Geanonimiseerd</div>
@@ -1123,6 +1178,78 @@ function runDemo() {
   const status = document.getElementById('demoStatus');
   status.textContent = totalCount > 0 ? `✓ ${totalCount} items geanonimiseerd` : '✓ Geen privédata gevonden';
   status.className = 'demo-header-badge badge-ok';
+}
+
+// ── FILE UPLOAD ──
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const demoUpload = document.getElementById('demoUpload');
+demoUpload.addEventListener('dragover', e => { e.preventDefault(); demoUpload.classList.add('dragover'); });
+demoUpload.addEventListener('dragleave', () => demoUpload.classList.remove('dragover'));
+demoUpload.addEventListener('drop', e => {
+  e.preventDefault();
+  demoUpload.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const icons = { pdf: '📕', docx: '📘', txt: '📄' };
+
+  document.getElementById('fileLoadedIcon').textContent = icons[ext] || '📄';
+  document.getElementById('fileLoadedName').textContent = file.name;
+  document.getElementById('fileLoadedSize').textContent = formatBytes(file.size);
+  document.getElementById('demoFileLoaded').style.display = 'flex';
+  document.getElementById('demoUpload').style.display = 'none';
+
+  let text = '';
+  try {
+    if (ext === 'txt') {
+      text = await file.text();
+    } else if (ext === 'pdf') {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const c = await page.getTextContent();
+        text += c.items.map(s => s.str).join(' ') + '\n';
+      }
+    } else if (ext === 'docx') {
+      const buf = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer: buf });
+      text = result.value;
+    } else {
+      alert('Bestandstype niet ondersteund. Gebruik PDF, DOCX of TXT.');
+      clearFile();
+      return;
+    }
+    document.getElementById('demoInput').value = text;
+    document.getElementById('demoStatus').textContent = '⚠ Bestand geladen — klik Anonimiseer';
+  } catch(e) {
+    alert('Fout bij het lezen van het bestand: ' + e.message);
+    clearFile();
+  }
+}
+
+function clearFile() {
+  document.getElementById('demoFileLoaded').style.display = 'none';
+  document.getElementById('demoUpload').style.display = 'block';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('demoInput').value = '';
+  document.getElementById('demoOutput').textContent = 'Klik op "Anonimiseer" om het resultaat te zien...';
+  document.getElementById('demoOutput').classList.remove('has-content');
+  document.getElementById('findingsRow').classList.remove('visible');
+  document.getElementById('findingsRow').innerHTML = '';
+  document.getElementById('demoStatus').textContent = '⚠ Privédata aanwezig';
+  document.getElementById('demoStatus').className = 'demo-header-badge badge-warn';
 }
 </script>
 </body>
