@@ -1036,17 +1036,45 @@ function handleSignup2(e) {
 
 // ── DEMO ──
 const PATTERNS = [
-  { regex: /\b[A-Z][a-z]+ (?:de |van |van de |den |der )?[A-Z][a-z]+\b/g, label: 'PERSOON', cls: 'tag-p', replace: '<PERSOON>' },
-  { regex: /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g,        label: 'E-MAIL',  cls: 'tag-e', replace: '<E-MAIL>'  },
-  { regex: /\b(?:06|0[1-9]\d)[-.\s]?\d{8}\b/g,                            label: 'TELEFOON',cls: 'tag-t', replace: '<TELEFOON>'},
-  { regex: /\b\d{9}\b/g,                                                    label: 'BSN',     cls: 'tag-b', replace: '<BSN>'     },
-  { regex: /\bNL\d{2}[A-Z]{4}\d{10}\b/gi,                                  label: 'IBAN',    cls: 'tag-i', replace: '<IBAN>'    },
-  { regex: /\b\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}\b/g,                        label: 'DATUM',   cls: 'tag-e', replace: '<DATUM>'   },
+  { regex: /\bNL\d{2}[A-Z]{4}\d{10}\b/gi, label: 'IBAN', cls: 'tag-i', replace: '<IBAN>' },
+  { regex: /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g, label: 'E-MAIL', cls: 'tag-e', replace: '<E-MAIL>' },
+  { regex: /(?:\+31|0031|0)[- ]?(?:6[- ]?\d{8}|[1-9]\d[- ]?\d{7}|\d{2}[- ]?\d{6,7})/g, label: 'TELEFOON', cls: 'tag-t', replace: '<TELEFOON>' },
+  { regex: /(?<![A-Z0-9])\d{9}(?!\d)/g, label: 'BSN', cls: 'tag-b', replace: '<BSN>' },
+  { regex: /\b\d{4}\s?[A-Z]{2}\b(?:\s+[A-Z][a-z]+(?:[\s\-][A-Za-z]+)*)?/g, label: 'ADRES', cls: 'tag-p', replace: '<ADRES>' },
+  { regex: /\b[A-Z][a-z]+(?:straat|laan|weg|plein|gracht|dijk|singel|kade|dreef|steeg|pad|allee|boulevard|hof|markt|dam|brug)\s+\d+[a-zA-Z]?\b/gi, label: 'ADRES', cls: 'tag-p', replace: '<ADRES>' },
+  { regex: /(?:EUR?)\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?/gi, label: 'BEDRAG', cls: 'tag-t', replace: '<BEDRAG>' },
+  { regex: /\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]\d{2,4}/g, label: 'DATUM', cls: 'tag-e', replace: '<DATUM>' },
+  { regex: /\b\d{1,2}\s+(?:januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+\d{4}\b/gi, label: 'DATUM', cls: 'tag-e', replace: '<DATUM>' },
+  { regex: /\b[A-ZÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜ][a-zàáâäèéêëìíîïòóôõöùúûü]+(?:\s+(?:de|van|van de|van den|van der|den|der|ten|ter|op)\s+)?[A-ZÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜ][a-zàáâäèéêëìíîïòóôõöùúûü]+(?:\s+[A-ZÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜ][a-zàáâäèéêëìíîïòóôõöùúûü]+)?\b/g, label: 'PERSOON', cls: 'tag-p', replace: '<PERSOON>' },
+  { regex: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, label: 'IP-ADRES', cls: 'tag-b', replace: '<IP-ADRES>' },
 ];
 
+const EXAMPLE = `Beste Jan de Vries en Maria van den Berg,
+
+Hierbij het overzicht van uw dossier:
+
+Naam:           Jan de Vries
+Geboortedatum:  12-03-1985
+BSN:            123456789
+Adres:          Kerkstraat 42, 1234 AB Amsterdam
+Telefoon:       06-12345678
+E-mail:         jan.devries@voorbeeld.nl
+IBAN:           NL91ABNA0417164300
+Factuurbedrag:  € 1.250,00
+
+Tweede contactpersoon:
+Naam:           Sophie Jansen
+Telefoon:       +31 20 123 4567
+E-mail:         s.jansen@bedrijf.nl
+IBAN:           NL02RABO0123456789
+Bedrag:         EUR 890,50
+Adres:          Hoofdstraat 7A, 2500 GH Den Haag
+
+Met vriendelijke groet,
+Peter de Boer`;
+
 function loadExample() {
-  document.getElementById('demoInput').value =
-    'Beste Jan de Vries,\n\nUw BSN is 123456789 en uw IBAN is NL91ABNA0417164300.\nBereikbaar via jan.devries@voorbeeld.nl of 06-12345678.\nGeboren op 12-03-1985.';
+  document.getElementById('demoInput').value = EXAMPLE;
 }
 
 function clearDemo() {
@@ -1063,15 +1091,19 @@ function runDemo() {
   const input = document.getElementById('demoInput').value.trim();
   if (!input) { loadExample(); return; }
 
-  const found = [];
+  const foundTypes = {};
+  let totalCount = 0;
   let result = input;
 
   PATTERNS.forEach(p => {
-    const matches = input.match(new RegExp(p.regex.source, p.regex.flags));
-    if (matches) matches.forEach(m => {
-      if (!found.find(f => f.value === m)) found.push({ value: m, label: p.label, cls: p.cls });
-    });
-    result = result.replace(new RegExp(p.regex.source, p.regex.flags), p.replace);
+    const re = new RegExp(p.regex.source, p.regex.flags);
+    const matches = result.match(re);
+    if (matches) {
+      totalCount += matches.length;
+      if (!foundTypes[p.label]) foundTypes[p.label] = { count: 0, cls: p.cls };
+      foundTypes[p.label].count += matches.length;
+    }
+    result = result.replace(re, p.replace);
   });
 
   const out = document.getElementById('demoOutput');
@@ -1080,22 +1112,17 @@ function runDemo() {
 
   const row = document.getElementById('findingsRow');
   row.innerHTML = '';
-  found.forEach(f => {
+  Object.entries(foundTypes).forEach(([label, info]) => {
     const chip = document.createElement('span');
-    chip.className = `finding-chip ${f.cls}`;
-    chip.textContent = f.label;
+    chip.className = `finding-chip ${info.cls}`;
+    chip.textContent = `${label} ×${info.count}`;
     row.appendChild(chip);
   });
-  row.classList.toggle('visible', found.length > 0);
+  row.classList.toggle('visible', totalCount > 0);
 
   const status = document.getElementById('demoStatus');
-  if (found.length > 0) {
-    status.textContent = `✓ ${found.length} items geanonimiseerd`;
-    status.className = 'demo-header-badge badge-ok';
-  } else {
-    status.textContent = '✓ Geen privédata gevonden';
-    status.className = 'demo-header-badge badge-ok';
-  }
+  status.textContent = totalCount > 0 ? `✓ ${totalCount} items geanonimiseerd` : '✓ Geen privédata gevonden';
+  status.className = 'demo-header-badge badge-ok';
 }
 </script>
 </body>
