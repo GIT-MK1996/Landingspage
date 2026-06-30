@@ -317,6 +317,7 @@
     .tag-e { background: #f0fdf4; color: #16a34a; }
     .tag-t { background: #fffbeb; color: #d97706; }
     .tag-i { background: #fef2f2; color: #dc2626; }
+    .tag-o { background: #fff7ed; color: #ea580c; }
 
     .mockup-btn {
       width: 100%;
@@ -936,6 +937,7 @@
       <button class="demo-run-btn" onclick="runDemo()">🔍 Anonimiseer</button>
       <button class="demo-ghost-btn" onclick="loadExample()">Laad voorbeeld</button>
       <button class="demo-ghost-btn" onclick="clearDemo()">Wissen</button>
+      <button class="demo-ghost-btn" id="downloadBtn" onclick="downloadResult()" style="display:none">⬇️ Download .txt</button>
       <div class="findings-row" id="findingsRow"></div>
     </div>
   </div>
@@ -1090,17 +1092,30 @@ function handleSignup2(e) {
 }
 
 // ── DEMO ──
+const STOPWOORDEN = '(Beste|Geachte|Hierbij|Betreft|Datum|Op|In|De|Het|Een|Aan|Van|Met|Voor|Dit|Uw|Als|Bij|Uit|Over|Door|Tijdens|Zonder|Strikt|Versie|Functie|Veld|Waarde|Contact|Kantoor|Senior|Junior|Afdeling|Adviesbureau|Directeur|Leidinggevende|Medewerker|Bewaarplicht|Verspreiding|Toestemming|Nationaliteit|Burgerlijke|Contracttype|Geboortedatum|Geboorteplaats|Woonadres|Woonplaats|Postcode|Telefoonnummer|Aandachtspunt|Tevens|Initiatieven|Arbeidsovereenkomst|Ondergetekenden|Verklaren|Werkgever|Werknemer|Bepaalde|Onbepaalde|Gevestigd|Kantoorhoudende|Rechtsgeldig|Vertegenwoordigd|Verder|Noemen|Wonende|Geboren|Navolgende|Voorwaarden|Bedingen|Artikel|Salaris|Vakantiegeld|Proeftijd|Opzegtermijn|Bijlage|Onderstaand|Bovenstaand|Aldus|Opgemaakt|Getekend|Plaats|Handtekening)';
+
 const PATTERNS = [
   { regex: /\bNL\d{2}[A-Z]{4}\d{10}\b/gi, label: 'IBAN', cls: 'tag-i', replace: '<IBAN>' },
   { regex: /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g, label: 'E-MAIL', cls: 'tag-e', replace: '<E-MAIL>' },
   { regex: /(?:\+31|0031|0)[- ]?(?:6[- ]?\d{8}|[1-9]\d[- ]?\d{7}|\d{2}[- ]?\d{6,7})/g, label: 'TELEFOON', cls: 'tag-t', replace: '<TELEFOON>' },
   { regex: /(?<![A-Z0-9])\d{9}(?!\d)/g, label: 'BSN', cls: 'tag-b', replace: '<BSN>' },
   { regex: /\b\d{4}\s?[A-Z]{2}\b(?:\s+[A-Z][a-z]+(?:[\s\-][A-Za-z]+)*)?/g, label: 'ADRES', cls: 'tag-p', replace: '<ADRES>' },
-  { regex: /\b[A-Z][a-z]+(?:straat|laan|weg|plein|gracht|dijk|singel|kade|dreef|steeg|pad|allee|boulevard|hof|markt|dam|brug)\s+\d+[a-zA-Z]?\b/gi, label: 'ADRES', cls: 'tag-p', replace: '<ADRES>' },
+  { regex: /\b[A-Z][a-z]+(?:straat|laan|weg|plein|gracht|dijk|singel|kade|dreef|steeg|pad|allee|boulevard|hof|markt|dam|brug|wende)\s+\d+[a-zA-Z]?\b/gi, label: 'ADRES', cls: 'tag-p', replace: '<ADRES>' },
   { regex: /(?:EUR?)\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?/gi, label: 'BEDRAG', cls: 'tag-t', replace: '<BEDRAG>' },
   { regex: /\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]\d{2,4}/g, label: 'DATUM', cls: 'tag-e', replace: '<DATUM>' },
   { regex: /\b\d{1,2}\s+(?:januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+\d{4}\b/gi, label: 'DATUM', cls: 'tag-e', replace: '<DATUM>' },
-  { regex: /\b[A-ZÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜ][a-zàáâäèéêëìíîïòóôõöùúûü]+(?:\s+(?:de|van|van de|van den|van der|den|der|ten|ter|op)\s+)?[A-ZÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜ][a-zàáâäèéêëìíîïòóôõöùúûü]+(?:\s+[A-ZÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜ][a-zàáâäèéêëìíîïòóôõöùúûü]+)?\b/g, label: 'PERSOON', cls: 'tag-p', replace: '<PERSOON>' },
+
+  // BEDRIJFSNAAM: Woord(en) gevolgd door bv/nv/b.v./n.v./vof/holding/groep
+  { regex: /\b[A-Z][A-Za-z&\s]{1,40}?\s(?:bv|BV|b\.v\.|nv|NV|n\.v\.|vof|VOF|holding|Holding|groep|Groep)\b\.?/g, label: 'BEDRIJF', cls: 'tag-o', replace: '<BEDRIJF>' },
+
+  // NAAM met initialen: T. Hellfayer / W.J.G. Riel / A.B. de Vries
+  { regex: /\b(?:[A-Z]\.){1,4}\s?(?:(?:de|van|van de|van den|van der|den|der|ten|ter)\s+)?[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,}\b/g, label: 'PERSOON', cls: 'tag-p', replace: '<PERSOON>' },
+
+  // PERSOON: Voornaam + tussenvoegsel + Achternaam (Jan van der Berg)
+  { regex: new RegExp('\\\\b(?!' + STOPWOORDEN + '\\\\b)[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,}\\\\s+(?:de|van|van de|van den|van der|den|der|ten|ter|el|al|Al|El)\\\\s+[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,}\\\\b', 'g'), label: 'PERSOON', cls: 'tag-p', replace: '<PERSOON>' },
+
+  // PERSOON: Voornaam + Achternaam, geen tussenvoegsel (Sophie Jansen)
+  { regex: new RegExp('\\\\b(?!' + STOPWOORDEN + '\\\\b)[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,}\\\\s+[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,}(?:\\\\s+[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,})?\\\\b', 'g'), label: 'PERSOON', cls: 'tag-p', replace: '<PERSOON>' },
   { regex: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, label: 'IP-ADRES', cls: 'tag-b', replace: '<IP-ADRES>' },
 ];
 
@@ -1178,6 +1193,20 @@ function runDemo() {
   const status = document.getElementById('demoStatus');
   status.textContent = totalCount > 0 ? `✓ ${totalCount} items geanonimiseerd` : '✓ Geen privédata gevonden';
   status.className = 'demo-header-badge badge-ok';
+
+  // Toon download knop als er resultaat is
+  document.getElementById('downloadBtn').style.display = totalCount > 0 ? 'block' : 'none';
+}
+
+function downloadResult() {
+  const text = document.getElementById('demoOutput').textContent;
+  if (!text || text === 'Klik op "Anonimiseer" om het resultaat te zien...') return;
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'geanonimiseerd_' + new Date().toISOString().slice(0,10) + '.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // ── FILE UPLOAD ──
