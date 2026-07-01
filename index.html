@@ -1094,54 +1094,38 @@ function handleSignup2(e) {
 // ── DEMO ──
 const STOPWOORDEN = '(Beste|Geachte|Hierbij|Betreft|Datum|Op|In|De|Het|Een|Aan|Van|Met|Voor|Dit|Uw|Als|Bij|Uit|Over|Door|Tijdens|Zonder|Strikt|Versie|Functie|Veld|Waarde|Contact|Kantoor|Senior|Junior|Afdeling|Adviesbureau|Directeur|Leidinggevende|Medewerker|Bewaarplicht|Verspreiding|Toestemming|Nationaliteit|Burgerlijke|Contracttype|Geboortedatum|Geboorteplaats|Woonadres|Woonplaats|Postcode|Telefoonnummer|Aandachtspunt|Tevens|Initiatieven|Arbeidsovereenkomst|Ondergetekenden|Verklaren|Werkgever|Werknemer|Bepaalde|Onbepaalde|Gevestigd|Kantoorhoudende|Rechtsgeldig|Vertegenwoordigd|Verder|Noemen|Wonende|Geboren|Navolgende|Voorwaarden|Bedingen|Artikel|Salaris|Vakantiegeld|Proeftijd|Opzegtermijn|Bijlage|Onderstaand|Bovenstaand|Aldus|Opgemaakt|Getekend|Plaats|Handtekening)';
 
-const PATTERNS = [
-  { regex: /\bNL\d{2}[A-Z]{4}\d{10}\b/gi, label: 'IBAN', cls: 'tag-i', replace: '<IBAN>' },
-  { regex: /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g, label: 'E-MAIL', cls: 'tag-e', replace: '<E-MAIL>' },
-  { regex: /(?:\+31|0031|0)[- ]?(?:6[- ]?\d{8}|[1-9]\d[- ]?\d{7}|\d{2}[- ]?\d{6,7})/g, label: 'TELEFOON', cls: 'tag-t', replace: '<TELEFOON>' },
-  { regex: /(?<![A-Z0-9])\d{9}(?!\d)/g, label: 'BSN', cls: 'tag-b', replace: '<BSN>' },
-  { regex: /\b\d{4}\s?[A-Z]{2}\b(?:\s+[A-Z][a-z]+(?:[\s\-][A-Za-z]+)*)?/g, label: 'ADRES', cls: 'tag-p', replace: '<ADRES>' },
-  { regex: /\b[A-Z][a-z]+(?:straat|laan|weg|plein|gracht|dijk|singel|kade|dreef|steeg|pad|allee|boulevard|hof|markt|dam|brug|wende)\s+\d+[a-zA-Z]?\b/gi, label: 'ADRES', cls: 'tag-p', replace: '<ADRES>' },
-  { regex: /(?:EUR?)\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?/gi, label: 'BEDRAG', cls: 'tag-t', replace: '<BEDRAG>' },
-  { regex: /\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]\d{2,4}/g, label: 'DATUM', cls: 'tag-e', replace: '<DATUM>' },
-  { regex: /\b\d{1,2}\s+(?:januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+\d{4}\b/gi, label: 'DATUM', cls: 'tag-e', replace: '<DATUM>' },
-
-  // BEDRIJFSNAAM: Woord(en) gevolgd door bv/nv/b.v./n.v./vof/holding/groep
-  { regex: /\b[A-Z][A-Za-z&\s]{1,40}?\s(?:bv|BV|b\.v\.|nv|NV|n\.v\.|vof|VOF|holding|Holding|groep|Groep)\b\.?/g, label: 'BEDRIJF', cls: 'tag-o', replace: '<BEDRIJF>' },
-
-  // NAAM met initialen: T. Hellfayer / W.J.G. Riel / A.B. de Vries
-  { regex: /\b(?:[A-Z]\.){1,4}\s?(?:(?:de|van|van de|van den|van der|den|der|ten|ter)\s+)?[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,}\b/g, label: 'PERSOON', cls: 'tag-p', replace: '<PERSOON>' },
-
-  // PERSOON: Voornaam + tussenvoegsel + Achternaam (Jan van der Berg)
-  { regex: new RegExp('\\\\b(?!' + STOPWOORDEN + '\\\\b)[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,}\\\\s+(?:de|van|van de|van den|van der|den|der|ten|ter|el|al|Al|El)\\\\s+[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,}\\\\b', 'g'), label: 'PERSOON', cls: 'tag-p', replace: '<PERSOON>' },
-
-  // PERSOON: Voornaam + Achternaam, geen tussenvoegsel (Sophie Jansen)
-  { regex: new RegExp('\\\\b(?!' + STOPWOORDEN + '\\\\b)[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,}\\\\s+[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,}(?:\\\\s+[A-Z][a-zàáâäèéêëìíîïòóôõöùúûü]{2,})?\\\\b', 'g'), label: 'PERSOON', cls: 'tag-p', replace: '<PERSOON>' },
-  { regex: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, label: 'IP-ADRES', cls: 'tag-b', replace: '<IP-ADRES>' },
+// Regex voor vaste patronen (BSN, IBAN, e-mail, telefoon, datums, bedragen)
+const FIXED_PATTERNS = [
+  { regex: /\bNL\d{2}[A-Z]{4}\d{10}\b/gi,                                        label: 'IBAN',     replace: '<IBAN>'     },
+  { regex: /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g,                 label: 'E-MAIL',   replace: '<E-MAIL>'   },
+  { regex: /(?:\+31|0031|0)[- ]?(?:6[- ]?\d{8}|[1-9]\d[- ]?\d{7}|\d{2}[- ]?\d{6,7})/g, label: 'TELEFOON', replace: '<TELEFOON>' },
+  { regex: /(?<![A-Z0-9])\d{9}(?!\d)/g,                                           label: 'BSN',      replace: '<BSN>'      },
+  { regex: /\b\d{4}\s?[A-Z]{2}\b(?:\s+[A-Z][a-z]+(?:[\s\-][A-Za-z]+)*)?/g,      label: 'ADRES',    replace: '<ADRES>'    },
+  { regex: /\b[A-Z][a-z]+(?:straat|laan|weg|plein|gracht|dijk|singel|kade|dreef|steeg|pad|allee|boulevard|hof|markt|dam|brug|wende)\s+\d+[a-zA-Z]?\b/gi, label: 'ADRES', replace: '<ADRES>' },
+  { regex: /(?:€|EUR)\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?/gi,                  label: 'BEDRAG',   replace: '<BEDRAG>'   },
+  { regex: /\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]\d{2,4}/g,                             label: 'DATUM',    replace: '<DATUM>'    },
+  { regex: /\b\d{1,2}\s+(?:januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+\d{4}\b/gi, label: 'DATUM', replace: '<DATUM>' },
+  { regex: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,                                        label: 'IP-ADRES', replace: '<IP-ADRES>' },
 ];
 
-const EXAMPLE = `Beste Jan de Vries en Maria van den Berg,
+const EXAMPLE = `ARBEIDSOVEREENKOMST VOOR BEPAALDE TIJD
 
-Hierbij het overzicht van uw dossier:
+De ondergetekenden,
 
-Naam:           Jan de Vries
-Geboortedatum:  12-03-1985
-BSN:            123456789
-Adres:          Kerkstraat 42, 1234 AB Amsterdam
-Telefoon:       06-12345678
-E-mail:         jan.devries@voorbeeld.nl
-IBAN:           NL91ABNA0417164300
-Factuurbedrag:  € 1.250,00
+Aboma Certification bv, gevestigd en kantoorhoudende te Ede, ten deze rechtsgeldig vertegenwoordigd door W.J.G. Riel, verder te noemen: werkgever, en
 
-Tweede contactpersoon:
-Naam:           Sophie Jansen
-Telefoon:       +31 20 123 4567
-E-mail:         s.jansen@bedrijf.nl
-IBAN:           NL02RABO0123456789
-Bedrag:         EUR 890,50
-Adres:          Hoofdstraat 7A, 2500 GH Den Haag
+T. Hellfayer, geboren op 14-03-1990, wonende te Apeldoorn, aan de Zonnewende 341, verder te noemen: werknemer,
 
-Met vriendelijke groet,
-Peter de Boer`;
+verklaren een arbeidsovereenkomst voor bepaalde tijd te zijn aangegaan onder de navolgende voorwaarden en bedingen:
+
+Artikel 1 - Functie en standplaats
+Werknemer treedt in dienst als Kwaliteitscontroleur. Direct leidinggevende is mevrouw S.K. van Oosten, bereikbaar via s.vanoosten@bedrijf.nl of 055-789 4321.
+
+Artikel 2 - Salaris en bankgegevens
+Het bruto maandsalaris bedraagt EUR 3.250,00, te betalen op IBAN NL44INGB0123456789. Het BSN van werknemer is 234567891.
+
+Handtekening werkgever: W.J.G. Riel
+Handtekening werknemer: T. Hellfayer`;
 
 function loadExample() {
   document.getElementById('demoInput').value = EXAMPLE;
@@ -1155,52 +1139,120 @@ function clearDemo() {
   document.getElementById('findingsRow').innerHTML = '';
   document.getElementById('demoStatus').textContent = '⚠ Privédata aanwezig';
   document.getElementById('demoStatus').className = 'demo-header-badge badge-warn';
+  document.getElementById('downloadBtn').style.display = 'none';
 }
 
-function runDemo() {
+async function runDemo() {
   const input = document.getElementById('demoInput').value.trim();
   if (!input) { loadExample(); return; }
 
-  const foundTypes = {};
-  let totalCount = 0;
-  let result = input;
-
-  PATTERNS.forEach(p => {
-    const re = new RegExp(p.regex.source, p.regex.flags);
-    const matches = result.match(re);
-    if (matches) {
-      totalCount += matches.length;
-      if (!foundTypes[p.label]) foundTypes[p.label] = { count: 0, cls: p.cls };
-      foundTypes[p.label].count += matches.length;
-    }
-    result = result.replace(re, p.replace);
-  });
-
-  const out = document.getElementById('demoOutput');
-  out.textContent = result;
-  out.classList.add('has-content');
-
-  const row = document.getElementById('findingsRow');
-  row.innerHTML = '';
-  Object.entries(foundTypes).forEach(([label, info]) => {
-    const chip = document.createElement('span');
-    chip.className = `finding-chip ${info.cls}`;
-    chip.textContent = `${label} ×${info.count}`;
-    row.appendChild(chip);
-  });
-  row.classList.toggle('visible', totalCount > 0);
-
   const status = document.getElementById('demoStatus');
-  status.textContent = totalCount > 0 ? `✓ ${totalCount} items geanonimiseerd` : '✓ Geen privédata gevonden';
-  status.className = 'demo-header-badge badge-ok';
+  const out = document.getElementById('demoOutput');
+  const btn = document.getElementById('scanBtn') || document.querySelector('.demo-run-btn');
 
-  // Toon download knop als er resultaat is
-  document.getElementById('downloadBtn').style.display = totalCount > 0 ? 'block' : 'none';
+  status.textContent = '⏳ Bezig met analyseren...';
+  status.className = 'demo-header-badge badge-warn';
+  out.textContent = 'Claude analyseert de tekst...';
+  out.classList.add('has-content');
+  if (btn) btn.disabled = true;
+
+  try {
+    // Stap 1: Vaste patronen eerst (snel en betrouwbaar)
+    let result = input;
+    const foundTypes = {};
+
+    FIXED_PATTERNS.forEach(p => {
+      const re = new RegExp(p.regex.source, p.regex.flags);
+      const matches = result.match(re);
+      if (matches) {
+        if (!foundTypes[p.label]) foundTypes[p.label] = 0;
+        foundTypes[p.label] += matches.length;
+      }
+      result = result.replace(re, p.replace);
+    });
+
+    // Stap 2: Claude API voor namen, bedrijven en context-gevoelige data
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        messages: [{
+          role: 'user',
+          content: `Je bent een AVG-privacytool. Anonimiseer de onderstaande tekst door ALLE persoonsgegevens te vervangen.
+
+Vervang:
+- Persoonsnamen (ook met initialen zoals T. Hellfayer, W.J.G. Riel) → <PERSOON>
+- Bedrijfsnamen (ook bv, B.V., nv, VOF etc.) → <BEDRIJF>
+- Plaatsnamen waar mensen wonen/werken → <PLAATS>
+- Functietitels gekoppeld aan een persoon → behoud de functietitel zelf
+
+Belangrijk:
+- Vervang ELKE naam, ook als die meerdere keren voorkomt
+- Houd de rest van de tekst EXACT hetzelfde
+- Verander geen labels die al vervangen zijn zoals <IBAN>, <DATUM>, <BSN>, <E-MAIL>, <TELEFOON>, <ADRES>, <BEDRAG>
+- Geef ALLEEN de geanonimiseerde tekst terug, geen uitleg
+
+Tekst om te anonimiseren:
+${result}`
+        }]
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+
+    const aiResult = data.content?.[0]?.text || result;
+
+    // Tel wat Claude heeft vervangen
+    const persoonCount = (aiResult.match(/<PERSOON>/g) || []).length;
+    const bedrijfCount = (aiResult.match(/<BEDRIJF>/g) || []).length;
+    const plaatsCount  = (aiResult.match(/<PLAATS>/g)  || []).length;
+
+    if (persoonCount > 0) foundTypes['PERSOON'] = persoonCount;
+    if (bedrijfCount > 0) foundTypes['BEDRIJF'] = bedrijfCount;
+    if (plaatsCount  > 0) foundTypes['PLAATS']  = plaatsCount;
+
+    const totalCount = Object.values(foundTypes).reduce((a, b) => a + b, 0);
+
+    out.textContent = aiResult;
+    out.classList.add('has-content');
+
+    // Chips tonen
+    const tagCls = { IBAN: 'tag-i', 'E-MAIL': 'tag-e', TELEFOON: 'tag-t', BSN: 'tag-b',
+                     ADRES: 'tag-p', BEDRAG: 'tag-t', DATUM: 'tag-e', 'IP-ADRES': 'tag-b',
+                     PERSOON: 'tag-p', BEDRIJF: 'tag-o', PLAATS: 'tag-e' };
+    const row = document.getElementById('findingsRow');
+    row.innerHTML = '';
+    Object.entries(foundTypes).forEach(([label, count]) => {
+      const chip = document.createElement('span');
+      chip.className = `finding-chip ${tagCls[label] || 'tag-p'}`;
+      chip.textContent = `${label} ×${count}`;
+      row.appendChild(chip);
+    });
+    row.classList.toggle('visible', totalCount > 0);
+
+    status.textContent = totalCount > 0 ? `✓ ${totalCount} items geanonimiseerd` : '✓ Geen privédata gevonden';
+    status.className = 'demo-header-badge badge-ok';
+    document.getElementById('downloadBtn').style.display = totalCount > 0 ? 'block' : 'none';
+
+  } catch (err) {
+    // Fallback: alleen vaste patronen tonen als API mislukt
+    console.error('API fout:', err);
+    status.textContent = '⚠ API niet bereikbaar — basisfilter gebruikt';
+    status.className = 'demo-header-badge badge-warn';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function downloadResult() {
   const text = document.getElementById('demoOutput').textContent;
-  if (!text || text === 'Klik op "Anonimiseer" om het resultaat te zien...') return;
+  if (!text || text.includes('analyseren')) return;
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
