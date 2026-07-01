@@ -1180,19 +1180,26 @@ async function runDemo() {
         max_tokens: 4000,
         messages: [{
           role: 'user',
-          content: `Je bent een AVG-privacytool. Anonimiseer de onderstaande tekst door ALLE persoonsgegevens te vervangen.
+          content: `Je bent een AVG-privacytool. Jouw taak is om ALLE persoonsgegevens uit de tekst te halen en te vervangen door een label. Wees grondig — mis niets.
 
-Vervang:
-- Persoonsnamen (ook met initialen zoals T. Hellfayer, W.J.G. Riel) → <PERSOON>
-- Bedrijfsnamen (ook bv, B.V., nv, VOF etc.) → <BEDRIJF>
-- Plaatsnamen waar mensen wonen/werken → <PLAATS>
-- Functietitels gekoppeld aan een persoon → behoud de functietitel zelf
+Vervang de volgende categorieën:
+- Volledige namen, voornamen, achternamen, roepnamen, meisjesnamen → <PERSOON>
+- Namen met initialen (T. Hellfayer, W.J.G. Riel, mr. R.A. Visser) → <PERSOON>
+- Bedrijfsnamen (ook bv, B.V., nv, N.V., VOF, Ltd, GmbH, Inc.) → <BEDRIJF>
+- Woonplaats, geboorteplaats, stad waar iemand woont of geboren is → <PLAATS>
+- Personeelsnummer, klantnummer, lidnummer, studentnummer, dossiernummer → <ID-NUMMER>
+- Leeftijd als die herleidbaar is naar een persoon ("de 34-jarige werknemer") → <LEEFTIJD>
+- Nationaliteit als die herleidbaar is naar een specifiek persoon → <NATIONALITEIT>
+- Functies of titels direct gekoppeld aan een persoon ("directeur Jan Jansen") → behoud de functie, vervang de naam
 
-Belangrijk:
-- Vervang ELKE naam, ook als die meerdere keren voorkomt
-- Houd de rest van de tekst EXACT hetzelfde
-- Verander geen labels die al vervangen zijn zoals <IBAN>, <DATUM>, <BSN>, <E-MAIL>, <TELEFOON>, <ADRES>, <BEDRAG>
-- Geef ALLEEN de geanonimiseerde tekst terug, geen uitleg
+Laat deze labels zoals ze zijn (al eerder vervangen):
+<IBAN>, <DATUM>, <BSN>, <E-MAIL>, <TELEFOON>, <ADRES>, <BEDRAG>, <IP-ADRES>
+
+Regels:
+- Vervang ELKE voorkomen van een naam, ook als die 10x in de tekst staat
+- Wees consistent: als "Jan de Vries" de eerste keer <PERSOON> wordt, dan ook de tweede en derde keer
+- Houd de rest van de tekst EXACT hetzelfde — geen letters, spaties of leestekens toevoegen of verwijderen
+- Geen uitleg, geen samenvatting, ALLEEN de geanonimiseerde tekst
 
 Tekst om te anonimiseren:
 ${result}`
@@ -1209,13 +1216,19 @@ ${result}`
     const aiResult = data.content?.[0]?.text || result;
 
     // Tel wat Claude heeft vervangen
-    const persoonCount = (aiResult.match(/<PERSOON>/g) || []).length;
-    const bedrijfCount = (aiResult.match(/<BEDRIJF>/g) || []).length;
-    const plaatsCount  = (aiResult.match(/<PLAATS>/g)  || []).length;
+    const persoonCount = (aiResult.match(/<PERSOON>/g)     || []).length;
+    const bedrijfCount = (aiResult.match(/<BEDRIJF>/g)     || []).length;
+    const plaatsCount  = (aiResult.match(/<PLAATS>/g)      || []).length;
+    const idCount      = (aiResult.match(/<ID-NUMMER>/g)   || []).length;
+    const leeftijdCount= (aiResult.match(/<LEEFTIJD>/g)    || []).length;
+    const natCount     = (aiResult.match(/<NATIONALITEIT>/g)|| []).length;
 
-    if (persoonCount > 0) foundTypes['PERSOON'] = persoonCount;
-    if (bedrijfCount > 0) foundTypes['BEDRIJF'] = bedrijfCount;
-    if (plaatsCount  > 0) foundTypes['PLAATS']  = plaatsCount;
+    if (persoonCount  > 0) foundTypes['PERSOON']      = persoonCount;
+    if (bedrijfCount  > 0) foundTypes['BEDRIJF']      = bedrijfCount;
+    if (plaatsCount   > 0) foundTypes['PLAATS']       = plaatsCount;
+    if (idCount       > 0) foundTypes['ID-NUMMER']    = idCount;
+    if (leeftijdCount > 0) foundTypes['LEEFTIJD']     = leeftijdCount;
+    if (natCount      > 0) foundTypes['NATIONALITEIT']= natCount;
 
     const totalCount = Object.values(foundTypes).reduce((a, b) => a + b, 0);
 
@@ -1225,7 +1238,8 @@ ${result}`
     // Chips tonen
     const tagCls = { IBAN: 'tag-i', 'E-MAIL': 'tag-e', TELEFOON: 'tag-t', BSN: 'tag-b',
                      ADRES: 'tag-p', BEDRAG: 'tag-t', DATUM: 'tag-e', 'IP-ADRES': 'tag-b',
-                     PERSOON: 'tag-p', BEDRIJF: 'tag-o', PLAATS: 'tag-e' };
+                     PERSOON: 'tag-p', BEDRIJF: 'tag-o', PLAATS: 'tag-e',
+                     'ID-NUMMER': 'tag-b', LEEFTIJD: 'tag-t', NATIONALITEIT: 'tag-e' };
     const row = document.getElementById('findingsRow');
     row.innerHTML = '';
     Object.entries(foundTypes).forEach(([label, count]) => {
